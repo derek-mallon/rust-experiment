@@ -6,6 +6,7 @@ use std::io::prelude::*;
 use std::fs::File;
 use glium::Surface;
 use position::PositionSystem;
+use position::PositionHandle;
 use pool::Pool;
 use pool::Handle;
 use utils::clamp;
@@ -140,12 +141,12 @@ pub enum RenderType{
 
 pub struct Renderable{
     t:RenderType,
-    pos:Handle,
+    pos:PositionHandle,
     program:String
 }
 
 impl Renderable{
-    pub fn new(item:RenderType,pos:Handle,program:&str)->Self{
+    pub fn new(item:RenderType,pos:PositionHandle,program:&str)->Self{
         return Renderable{t:item,pos:pos,program:String::from(program)};
     }
 }
@@ -200,14 +201,14 @@ impl Texture{
         return Texture{texture:texture,hotswap:hotswap};
     }
 }
-
+type Dummy = u32;
 pub struct RenderSystem{
     vb:glium::VertexBuffer<Vertex>,
     vb_p:glium::VertexBuffer<VertexPos>,
     textures:HashMap<String,Texture>,
     programs:HashMap<String,Program>,
     va:HashMap<String,Vec<VertexPos>>,
-    renderables:Pool<Renderable>,
+    renderables:Pool<Renderable,Dummy>,
     unit_x_pixels:f32,
     unit_y_pixels:f32,
     unit_offset_x:f32,
@@ -314,8 +315,8 @@ impl RenderSystem{
         target.finish().unwrap();
     }
 
-    pub fn add_renderable(&mut self,renderable:Renderable)->Handle{
-        return self.renderables.insert(renderable);
+    pub fn add_renderable(&mut self,renderable:Renderable,pos_system:&mut PositionSystem){
+        update_handle!(pos_system,renderable.pos,Option::Some(self.renderables.insert(renderable,0)));
     }
 
     pub fn pixels_to_world_cords_x(&self,x:u32)->f32{
@@ -339,4 +340,5 @@ impl RenderSystem{
     pub fn world_cords_to_gl_cords_y(&self,y:f32)->f32{
         return y/4.5;
     }
+
 }
