@@ -6,7 +6,6 @@ use std::io::prelude::*;
 use std::fs::File;
 use glium::Surface;
 use position::PositionSystem;
-use position::PositionHandle;
 use pool::Pool;
 use pool::Handle;
 use utils::clamp;
@@ -141,12 +140,12 @@ pub enum RenderType{
 
 pub struct Renderable{
     t:RenderType,
-    pos:PositionHandle,
+    pos:Handle,
     program:String
 }
 
 impl Renderable{
-    pub fn new(item:RenderType,pos:PositionHandle,program:&str)->Self{
+    pub fn new(item:RenderType,pos:Handle,program:&str)->Self{
         return Renderable{t:item,pos:pos,program:String::from(program)};
     }
 }
@@ -201,14 +200,13 @@ impl Texture{
         return Texture{texture:texture,hotswap:hotswap};
     }
 }
-type Dummy = u32;
 pub struct RenderSystem{
     vb:glium::VertexBuffer<Vertex>,
     vb_p:glium::VertexBuffer<VertexPos>,
     textures:HashMap<String,Texture>,
     programs:HashMap<String,Program>,
     va:HashMap<String,Vec<VertexPos>>,
-    renderables:Pool<Renderable,Dummy>,
+    renderables:Pool<Renderable>,
     unit_x_pixels:f32,
     unit_y_pixels:f32,
     unit_offset_x:f32,
@@ -288,11 +286,10 @@ impl RenderSystem{
                         PrimativeType::Square(width,height) =>{
                             self.vb_p.write(self.va.get("square").unwrap());
                             let pos = pos_system.get(renderable.pos).unwrap();
-
                             let uniforms = uniform! {
                                 scale: [
-                                    [self.world_cords_to_gl_cords_x(width),0.0,0.0,0.0],
-                                    [0.0,self.world_cords_to_gl_cords_y(height),0.0,0.0],
+                                    [width,0.0,0.0,0.0],
+                                    [0.0,height* (16.0/9.0),0.0,0.0],
                                     [0.0,0.0,1.0,0.0],
                                     [0.0,0.0,0.0,1.0]
                                 ],
@@ -300,7 +297,7 @@ impl RenderSystem{
                                     [1.0,0.0,0.0,0.0],
                                     [0.0,1.0,0.0,0.0],
                                     [0.0,0.0,1.0,0.0],
-                                    [self.world_cords_to_gl_cords_x(pos.x),self.world_cords_to_gl_cords_y(pos.y),0.0,1.0]
+                                    [self.world_cords_to_gl_cords_x(pos.vec4.x),self.world_cords_to_gl_cords_y(pos.vec4.y),0.0,1.0]
                                 ],
                                 color: [color.r,color.g,color.b,color.a]
                             };
@@ -315,8 +312,8 @@ impl RenderSystem{
         target.finish().unwrap();
     }
 
-    pub fn add_renderable(&mut self,renderable:Renderable,pos_system:&mut PositionSystem){
-        update_handle!(pos_system,renderable.pos,Option::Some(self.renderables.insert(renderable,0)));
+    pub fn add_renderable(&mut self,renderable:Renderable)->Handle{
+        return self.renderables.insert(renderable);
     }
 
     pub fn pixels_to_world_cords_x(&self,x:u32)->f32{

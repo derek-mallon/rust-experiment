@@ -13,20 +13,27 @@ use hotswap::Hotswap;
 use std::io::prelude::*;
 use std::fs::File;
 use position::PositionSystem;
-use position::Vec2;
+use position::Vec4;
 use rendering::PrimativeType;
 use rendering::RenderType;
 use rendering::Renderable;
+use pool::Handle;
+use std::mem::drop;
+use std::ops::Drop;
 
-#[derive(Copy,Clone)]
-struct Vertex{
-    position: [f32;2],
-    tex_cords:[f32;2],
+
+struct Test{
+    item:u32,
+}
+
+impl Drop for Test{
+    fn drop(&mut self){
+        println!("test");
+    }
 }
 
 
 
-implement_vertex!(Vertex,position,tex_cords);
 
 macro_rules! add_renderable{
     (
@@ -39,6 +46,9 @@ macro_rules! add_renderable{
 }
 fn main() {
 
+    {
+        let test = Test{item:0};
+    }
 
     use glium::DisplayBuild;
     use glium::Surface;
@@ -51,11 +61,16 @@ fn main() {
     let texture_paths = vec!["100_100_test.data"];
     let program_paths = "program.data";
     let mut render_system = rendering::RenderSystem::new(dim.0,dim.1,&display,texture_paths,program_paths);
-    let mut pos_system = PositionSystem::new(16,9,1.0);
-    let square = Renderable::new(RenderType::Primative(PrimativeType::Square(10.0,10.0),rendering::Color::new(1.0,0.0,0.0,1.0)),pos_system.insert(Vec2::new(1.0,-1.0)),"geometry");
-    let square2 = Renderable::new(RenderType::Primative(PrimativeType::Square(10.0,10.0),rendering::Color::new(0.0,1.0,0.0,1.0)),pos_system.insert(Vec2::new(-1.0,1.0)),"geometry");
-    let square3 = Renderable::new(RenderType::Primative(PrimativeType::Square(10.0,10.0),rendering::Color::new(0.0,0.0,1.0,1.0)),pos_system.insert(Vec2::new(-1.0,-1.0)),"geometry");
-    add_renderable!(render_system;pos_system;[square,square2]);
+    let mut pos_system = PositionSystem::new(16,9,10.0);
+    let pos_handle = pos_system.insert(Vec4::new(8.0,0.0,0.5,0.5));
+    let render_handle = render_system.add_renderable(Renderable::new(RenderType::Primative(PrimativeType::Square(1.0,1.0),rendering::Color::new(0.0,1.0,0.0,1.0)),pos_handle,"geometry"));
+    pos_system.get_mut(pos_handle).unwrap().renderable_handle(Option::Some(render_handle));
+    let pos_handle = pos_system.insert(Vec4::new(4.0,2.0,0.5,0.5));
+    let render_handle = render_system.add_renderable(Renderable::new(RenderType::Primative(PrimativeType::Square(1.0,1.0),rendering::Color::new(0.0,1.0,0.0,1.0)),pos_handle,"geometry"));
+    pos_system.get_mut(pos_handle).unwrap().renderable_handle(Option::Some(render_handle));
+    //let square2 = ;
+    //let square = Renderable::new(RenderType::Primative(PrimativeType::Square(10.0,10.0),rendering::Color::new(1.0,0.0,0.0,1.0)),pos_system.insert(Vec2::new(1.0,-1.0)),"geometry");
+    //add_renderable!(render_system;pos_system;[square2]);
     //let square4 = Renderable::new(RenderType::Primative(PrimativeType::Square(10.0,10.0),rendering::Color::new(0.0,0.0,0.0,1.0)),pos_system.insert(Vec2::new(0.0,1.0)),"geometry");
     //let square5 = Renderable::new(RenderType::Primative(PrimativeType::Square(10.0,10.0),rendering::Color::new(0.5,0.5,0.0,1.0)),pos_system.insert(Vec2::new(1.0,1.0)),"geometry");
     //let square6 = Renderable::new(RenderType::Primative(PrimativeType::Square(10.0,10.0),rendering::Color::new(0.0,0.5,0.5,1.0)),pos_system.insert(Vec2::new(-1.0,1.0)),"geometry");
@@ -71,10 +86,23 @@ fn main() {
     let mut mouse_x = 0;
     let mut mouse_y = 0;
     loop{
-        if dragging{
-            let check = pos_system.get_bucket(render_system.pixels_to_world_cords_x(mouse_x),render_system.pixels_to_world_cords_y(mouse_y));
-            for i in check{
-
+        let mut found : Vec<Handle> = Vec::new();
+        {
+            if dragging{
+                let check = {
+                    pos_system.get_location(render_system.pixels_to_world_cords_x(mouse_x),render_system.pixels_to_world_cords_y(mouse_y))
+                };
+                for handle in check{
+                    found.push(handle.clone());
+                }
+            }
+        }
+        for handle in found{
+            {
+                pos_system.get_mut(handle).unwrap().vec4.x(render_system.pixels_to_world_cords_x(mouse_x));
+            }
+            {
+                pos_system.get_mut(handle).unwrap().vec4.y(render_system.pixels_to_world_cords_y(mouse_y));
             }
         }
         render_system.render(&display,&pos_system);

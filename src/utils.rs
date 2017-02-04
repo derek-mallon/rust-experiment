@@ -28,6 +28,23 @@ macro_rules! basic_pub_all{
         };
 }
 
+macro_rules! basic_pub_all_no_copy_no_eq{
+        (pub struct $x:ident {
+            $( pub $attr_name:ident : $attr_type:ty),*
+        }) =>{
+
+            pub struct $x{
+                $( pub $attr_name : $attr_type),*
+            }
+            impl $x {
+                pub fn new($($attr_name:$attr_type),*) -> Self{
+                    return $x {$($attr_name:$attr_name),*};
+                }
+                $(pub fn $attr_name(&mut self,$attr_name:$attr_type){self.$attr_name = $attr_name;})*
+            }
+        };
+}
+
 macro_rules! basic_pub{
         (pub struct $x:ident {
             $( $attr_name:ident : $attr_type:ty),*

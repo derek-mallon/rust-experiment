@@ -1,38 +1,34 @@
 ///A pool for storing objects
 
-#[derive(Copy,Clone,PartialEq)]
-pub struct Handle<I:Copy + Clone + PartialEq>{
+#[derive(Copy,Clone,Hash,Eq,PartialEq)]
+pub struct Handle{
     self_index:usize,
     item_index:usize,
     age:usize,
-    pub inner:I
 }
-impl<I:Copy+Clone+PartialEq> Handle<I>{
-    pub fn inner(&mut self,inner:I){
-        self.inner = inner;
-    }
-}
-pub struct Pool<T,I:Copy + Clone + PartialEq>{
+
+pub struct Pool<T>{
     pub items:Vec<T>,
     handle_index:Vec<usize>,
-    handle:Vec<Handle<I>>,
+    handle:Vec<Handle>,
     age:usize
 }
 
-impl<T,I:Copy + Clone + PartialEq> Pool<T,I>{
+impl<T> Pool<T>{
     pub fn new()->Self{
-        return Pool::<T,I>{items:Vec::new(),handle_index:Vec::new(),handle:Vec::new(),age:0};
+        return Pool::<T>{items:Vec::new(),handle_index:Vec::new(),handle:Vec::new(),age:0};
     }
-    pub fn insert(&mut self,item:T,inner:I)->Handle<I>{
+
+    pub fn insert(&mut self,item:T)->Handle{
         self.handle_index.push(self.handle.len());
         let self_index = self.handle.len();
-        self.handle.push(Handle{self_index:self_index,item_index:self.items.len(),age:self.age,inner:inner});
+        self.handle.push(Handle{self_index:self_index,item_index:self.items.len(),age:self.age});
         self.items.push(item);
         self.age += 1;
         return self.handle[self.handle.len()-1];
     }
 
-    pub fn get_mut(&mut self,handle:Handle<I>)-> Result<&mut T,&str> {
+    pub fn get_mut(&mut self,handle:Handle)-> Result<&mut T,&str> {
         if  handle.self_index >= self.handle.len(){
             return Result::Err("Handle does not exist!");
         }
@@ -41,7 +37,7 @@ impl<T,I:Copy + Clone + PartialEq> Pool<T,I>{
         }
         return Result::Ok(&mut self.items[self.handle[handle.self_index].item_index]);
     }
-    pub fn get(&self,handle:Handle<I>)-> Result<&T,&str>{
+    pub fn get(&self,handle:Handle)-> Result<&T,&str>{
         if  handle.self_index >= self.handle.len(){
             return Result::Err("Handle does not exist!");
         }
@@ -51,7 +47,7 @@ impl<T,I:Copy + Clone + PartialEq> Pool<T,I>{
         return Result::Ok(&self.items[self.handle[handle.self_index].item_index]);
     }
 
-    pub fn remove(&mut self,handle:Handle<I>)->Result<T,&str>{
+    pub fn remove(&mut self,handle:Handle)->Result<T,&str>{
         if  handle.self_index >= self.handle.len(){
             return Result::Err("Handle does not exist!");
         }
@@ -64,17 +60,7 @@ impl<T,I:Copy + Clone + PartialEq> Pool<T,I>{
         return Result::Ok(self.items.swap_remove(self.handle[handle.self_index].item_index));
     }
 
-    pub fn update_handle(&mut self,handle:Handle<I>)->Result<(),&str>{
-        if  handle.self_index >= self.handle.len(){
-            return Result::Err("Handle does not exist!");
-        }
-        if self.handle[handle.self_index].age != handle.age{
-            return Result::Err("Handle invalid");
-        }
-        self.handle[handle.self_index].inner = handle.inner;
-        return Result::Ok(());
-    }
-    pub fn check_handle(&self,handle:Handle<I>)->Result<(),&str>{
+    pub fn check_handle(&self,handle:Handle)->Result<(),&str>{
         if  handle.self_index >= self.handle.len(){
             return Result::Err("Handle does not exist!");
         }
@@ -83,14 +69,15 @@ impl<T,I:Copy + Clone + PartialEq> Pool<T,I>{
         }
         return Result::Ok(());
     }
-    pub fn get_handle(&self,handle:Handle<I>)->Result<Handle<I>,&str>{
-        if  handle.self_index >= self.handle.len(){
-            return Result::Err("Handle does not exist!");
+    pub fn update_items(&mut self,closure:&mut FnMut(&mut T)){
+        for mut item in &mut self.items{
+            closure(&mut item);
         }
-        if self.handle[handle.self_index].age != handle.age{
-            return Result::Err("Handle invalid");
+    }
+    pub fn read_all_items(&self,closure:&Fn(&T)){
+        for item in &self.items{
+            closure(&item);
         }
-        return Result::Ok(self.handle[handle.self_index]);
     }
 }
 
@@ -98,16 +85,18 @@ impl<T,I:Copy + Clone + PartialEq> Pool<T,I>{
 #[test]
 pub fn test_pool(){
     let mut pool : Pool<u32,u32> = Pool::new();
-    pool.insert(1432432,0);
-    pool.insert(1432432,0);
-    pool.insert(1432432,0);
-    pool.insert(1432432,0);
-    pool.insert(1432432,0);
+    pool.insert(1432432);
+    pool.insert(1432432);
+    pool.insert(1432432);
+    pool.insert(1432432);
+    pool.insert(1432432);
     let handle = pool.insert(10);
-    pool.insert(1432432,0);
-    pool.insert(1432432,0);
-    pool.insert(1432432,0);
+    pool.insert(1432432);
+    pool.insert(1432432);
+    pool.insert(1432432);
     let handle2 = pool.insert(20);
+    *pool.get_mut(handle2).unwrap() = 1;
+    println!("{}",pool.get(handle2).unwrap());
     pool.remove(handle);
 
     assert!(*pool.get(handle).unwrap() == *pool.get(handle2).unwrap());
