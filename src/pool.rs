@@ -54,8 +54,13 @@ impl<T> Pool<T>{
         if self.handle[handle.self_index].age != handle.age{
             return Result::Err("Handle invalid");
         }
-
+        if self.handle_index.len() == 0{
+            return Result::Err("Empty Pool");
+        }
         let handle_index = self.handle_index.pop().unwrap();
+        if self.items.len() == 1{
+            return Result::Ok(self.items.pop().unwrap())
+        }
         self.handle[handle_index].item_index = self.handle[handle.self_index].item_index;
         return Result::Ok(self.items.swap_remove(self.handle[handle.self_index].item_index));
     }

@@ -5,3 +5,4 @@ authors = ["derek-mallon <derekmallon@tutanota.com>"]
 
 [dependencies]
 glium = "*"
+time = "*"

@@ -230,13 +230,13 @@ impl RenderSystem{
 
         let unit_offset_x = 8.0;
         let unit_offset_y = 4.5;
-        let vertex1 = VertexPos { position:[-0.1,0.10]}; // Top-left
-        let vertex2 = VertexPos { position:[0.1,0.1]};  //Top right
-        let vertex3 = VertexPos { position:[0.1,-0.1]}; //Bottom right
+        let vertex1 = VertexPos { position:[-1.0,1.0]}; // Top-left
+        let vertex2 = VertexPos { position:[1.0,1.0]};  //Top right
+        let vertex3 = VertexPos { position:[1.0,-1.0]}; //Bottom right
 
-        let vertex4 = VertexPos { position:[0.1,-0.1]}; //Bottom right
-        let vertex5 = VertexPos { position:[-0.1,-0.1]}; //Bottom left
-        let vertex6 = VertexPos { position:[-0.1,0.1]}; //Top left
+        let vertex4 = VertexPos { position:[1.0,-1.0]}; //Bottom right
+        let vertex5 = VertexPos { position:[-1.0,-1.0]}; //Bottom left
+        let vertex6 = VertexPos { position:[-1.0,1.0]}; //Top left
 
         let square = vec![vertex1,vertex2,vertex3,vertex4,vertex5,vertex6];
         let triangle = vec![vertex1,vertex2,vertex3];
@@ -288,10 +288,10 @@ impl RenderSystem{
                             let pos = pos_system.get(renderable.pos).unwrap();
                             let uniforms = uniform! {
                                 scale: [
-                                    [width,0.0,0.0,0.0],
-                                    [0.0,height* (16.0/9.0),0.0,0.0],
+                                    [self.world_cords_to_gl_cords_x(width),0.0,0.0,0.0],
+                                    [0.0,self.world_cords_to_gl_cords_y(height),0.0,0.0],
                                     [0.0,0.0,1.0,0.0],
-                                    [0.0,0.0,0.0,1.0]
+                                    [0.0,0.0,0.0,1.0 as f32]
                                 ],
                                 translate: [
                                     [1.0,0.0,0.0,0.0],
@@ -316,6 +316,10 @@ impl RenderSystem{
         return self.renderables.insert(renderable);
     }
 
+    pub fn remove_renderable(&mut self,handle:Handle){
+        self.renderables.remove(handle).uwrap();
+    }
+
     pub fn pixels_to_world_cords_x(&self,x:u32)->f32{
         return  x as f32  / self.unit_x_pixels - self.unit_offset_x;
     }
@@ -325,11 +329,11 @@ impl RenderSystem{
     }
     
     pub fn pixels_to_gl_cords_x(&self,y:u32)->f32{
-        return self.pixels_to_world_cords_x(y)/8.0;
+        return self.pixels_to_world_cords_x(y)/16.0;
     }
 
     pub fn pixels_to_gl_cords_y(&self,y:u32)->f32{
-        return self.pixels_to_world_cords_y(y)/4.5;
+        return self.pixels_to_world_cords_y(y)/9.0;
     }
     pub fn world_cords_to_gl_cords_x(&self,x:f32)->f32{
         return x/8.0;

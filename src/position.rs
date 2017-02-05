@@ -20,6 +20,10 @@ impl Vec4{
     pub fn aabb(v1:Vec4,v2:Vec4)->bool{
         return (v1.x - v2.x).abs() < (v1.half_width + v2.half_width) && (v1.y - v2.y).abs() < (v1.half_height + v2.half_height);
     }
+    pub fn translate(&mut self,x:f32,y:f32){
+        self.x += x;
+        self.y += y;
+    }
 }
 
 
@@ -27,7 +31,8 @@ basic_pub_all_no_copy_no_eq!{
     pub struct Position{
         pub vec4:Vec4,
         pub locations:Vec<Vec<Option<Handle>>>,
-        pub renderable_handle:Option<Handle>
+        pub renderable_handle:Option<Handle>,
+        pub physics_handle:Option<Handle>
     }
 }
 
@@ -67,7 +72,7 @@ pub fn get_over_all_pos(width:usize,height:usize,cell_size:f32,pos:Vec4,closure:
     }
 
     pub fn insert(&mut self,pos:Vec4)->Handle{
-        let mut result = self.pool.insert(Position::new(pos,Vec::new(),Option::None));
+        let mut result = self.pool.insert(Position::new(pos,Vec::new(),Option::None,Option::None));
         let mut vec = Vec::with_capacity(self.height);
         for y in 0..self.height{
             vec.push(Vec::with_capacity(self.width));
@@ -115,7 +120,7 @@ pub fn get_over_all_pos(width:usize,height:usize,cell_size:f32,pos:Vec4,closure:
     pub fn get_bucket(&mut self,x:f32,y:f32)->Vec<Handle>{
         let mut collection = Vec::new();
         let mut set = HashSet::new();
-        get_over_all_pos(self.width,self.height,self.cell_size,Vec4::new(x,y,0.0,0.0),&mut |x,y|{
+        get_over_all_pos(self.width,self.height,self.cell_size,Vec4::new(x,y,0.01,0.01),&mut |x,y|{
             for handle in &self.map[y][x].items{
                 if !set.contains(handle){
                     set.insert(*handle);
@@ -129,7 +134,7 @@ pub fn get_over_all_pos(width:usize,height:usize,cell_size:f32,pos:Vec4,closure:
     pub fn get_location(&mut self,x:f32,y:f32)->Vec<Handle>{
         let mut collection = Vec::new();
         let mut set = HashSet::new();
-        let vec = Vec4::new(x,y,0.0,0.0);
+        let vec = Vec4::new(x,y,0.01,0.01);
         get_over_all_pos(self.width,self.height,self.cell_size,vec,&mut |x,y|{
             for handle in &self.map[y][x].items{
                 if Vec4::aabb(self.pool.get(*handle).unwrap().vec4,vec){
@@ -143,13 +148,26 @@ pub fn get_over_all_pos(width:usize,height:usize,cell_size:f32,pos:Vec4,closure:
         return collection
     }
 
-    pub fn remove(&mut self,handle:Handle)->Result<(),&str>{
+    pub fn remove(&mut self,handle:Handle,render_system:&mut RenderSystem,physics_system:&mut PhysicsSystem)->Result<(),&str>{
         match self.pool.remove(handle){
             Result::Err(s) => {return Result::Err(s);},
             Result::Ok(position) => {
                 let width = self.width as i32;
                 let height = self.height as i32;
                 let pos = position.vec4;
+                match position.renderable_handle{
+                    Option::Some(handle) =>{
+                        render_system.remove_renderable(handle);
+                    },
+                    Option::None() => ();
+                }
+                match position.physics_handle{
+                    Option::Some(handle) =>{
+                        physics_system.remove_physics_object(handle);
+                    },
+                    Option::None() => ();
+                }
+
                 let top = clamp((((pos.y+pos.half_height) / self.cell_size).floor() + height as f32/2.0) as i32,0,height) as usize;
                 let right = clamp((((pos.x+pos.half_width) / self.cell_size).floor() + width as f32/2.0) as i32,0,width) as usize;
                 let bottom = clamp((((pos.y-pos.half_height) / self.cell_size).floor() + height as f32/2.0) as i32,0,height) as usize;
@@ -169,5 +187,36 @@ pub fn get_over_all_pos(width:usize,height:usize,cell_size:f32,pos:Vec4,closure:
 
         }
     }
-}
 
+    pub fn update(&mut self,handle:Handle)->Result<(),&str>{
+        match self.pool.get_mut(handle) {
+            Result::Err(s) => {return Result::Err(s);},
+            Result::Ok(mut position) => {
+                for y in 0..self.height{
+                    for x in 0..self.width{
+                        match position.locations[y][x]{
+                            Option::Some(loc_handle) =>{
+                                self.map[y][x].remove(loc_handle);
+                            },
+                            Option::None =>()
+                        }
+                    }
+                }
+                let width = self.width as i32;
+                let height = self.height as i32;
+                let pos = position.vec4;
+                let top = clamp((((pos.y+pos.half_height) / self.cell_size).floor() + height as f32/2.0) as i32,0,height) as usize;
+                let right = clamp((((pos.x+pos.half_width) / self.cell_size).floor() + width as f32/2.0) as i32,0,width) as usize;
+                let bottom = clamp((((pos.y-pos.half_height) / self.cell_size).floor() + height as f32/2.0) as i32,0,height) as usize;
+                let left = clamp((((pos.x-pos.half_width) / self.cell_size).floor() + width as f32/2.0) as i32,0,width) as usize;
+                for y in bottom..top+1{
+                    for x in left..right+1{
+                            position.locations[y][x] = Option::Some(self.map[y][x].insert(handle));
+                    }
+                }
+                return Result::Ok(());
+            }
+        }
+    }
+
+} 

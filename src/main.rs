@@ -9,6 +9,7 @@ mod image;
 #[macro_use]
 mod position;
 mod rendering;
+mod time;
 use hotswap::Hotswap;
 use std::io::prelude::*;
 use std::fs::File;
@@ -62,11 +63,11 @@ fn main() {
     let program_paths = "program.data";
     let mut render_system = rendering::RenderSystem::new(dim.0,dim.1,&display,texture_paths,program_paths);
     let mut pos_system = PositionSystem::new(16,9,10.0);
-    let pos_handle = pos_system.insert(Vec4::new(8.0,0.0,0.5,0.5));
-    let render_handle = render_system.add_renderable(Renderable::new(RenderType::Primative(PrimativeType::Square(1.0,1.0),rendering::Color::new(0.0,1.0,0.0,1.0)),pos_handle,"geometry"));
+    let pos_handle = pos_system.insert(Vec4::new(0.0,0.0,0.5,0.5));
+    let render_handle = render_system.add_renderable(Renderable::new(RenderType::Primative(PrimativeType::Square(0.5,0.5),rendering::Color::new(0.0,1.0,0.0,1.0)),pos_handle,"geometry"));
     pos_system.get_mut(pos_handle).unwrap().renderable_handle(Option::Some(render_handle));
     let pos_handle = pos_system.insert(Vec4::new(4.0,2.0,0.5,0.5));
-    let render_handle = render_system.add_renderable(Renderable::new(RenderType::Primative(PrimativeType::Square(1.0,1.0),rendering::Color::new(0.0,1.0,0.0,1.0)),pos_handle,"geometry"));
+    let render_handle = render_system.add_renderable(Renderable::new(RenderType::Primative(PrimativeType::Square(0.5,0.5),rendering::Color::new(0.0,1.0,0.0,1.0)),pos_handle,"geometry"));
     pos_system.get_mut(pos_handle).unwrap().renderable_handle(Option::Some(render_handle));
     //let square2 = ;
     //let square = Renderable::new(RenderType::Primative(PrimativeType::Square(10.0,10.0),rendering::Color::new(1.0,0.0,0.0,1.0)),pos_system.insert(Vec2::new(1.0,-1.0)),"geometry");
@@ -85,7 +86,9 @@ fn main() {
     let mut dragging = false;
     let mut mouse_x = 0;
     let mut mouse_y = 0;
+    let mut time :u64 = 0;
     loop{
+        println!("{} {}, {}",render_system.pixels_to_world_cords_x(mouse_x),render_system.pixels_to_world_cords_y(mouse_y),Vec4::aabb(Vec4::new(0.0,0.0,0.5,0.5),Vec4::new(render_system.pixels_to_world_cords_x(mouse_x),render_system.pixels_to_world_cords_y(mouse_y),0.01,0.01)));
         let mut found : Vec<Handle> = Vec::new();
         {
             if dragging{
@@ -104,7 +107,15 @@ fn main() {
             {
                 pos_system.get_mut(handle).unwrap().vec4.y(render_system.pixels_to_world_cords_y(mouse_y));
             }
+            {
+                pos_system.update(handle);
+            }
         }
+        pos_system.get_mut(pos_handle).unwrap().vec4.translate(-0.01,0.0);
+        {
+            pos_system.update(pos_handle);
+        }
+
         render_system.render(&display,&pos_system);
         for ev in display.poll_events(){
             match ev{
@@ -123,6 +134,7 @@ fn main() {
                 _=>()
             }
         }
+        time = time::do_time(time)
     }
 }
 
